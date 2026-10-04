@@ -48,4 +48,32 @@ final class ServerPoolTests: XCTestCase {
         let next = await pool.next()
         XCTAssertNil(next)
     }
+
+    func testSingleMirrorRecoversAfterBlacklistExpiry() async {
+        let clock = TestClock()
+        let pool = ServerPool(mirrors: [a], blacklistDuration: 300, now: { clock.date })
+        let n1 = await pool.next()
+        XCTAssertEqual(n1, a)
+        await pool.markFailed(a)
+        let n2 = await pool.next()
+        XCTAssertNil(n2)
+        clock.date += 301
+        let n3 = await pool.next()
+        XCTAssertEqual(n3, a)
+    }
+
+    func testMarkFailedResetsBlacklistWindow() async {
+        let clock = TestClock()
+        let pool = ServerPool(mirrors: [a, b], blacklistDuration: 300, now: { clock.date })
+        _ = await pool.next()          // a
+        await pool.markFailed(a)       // t=1000
+        clock.date += 200              // t=1200
+        await pool.markFailed(a)       // 重新计时
+        clock.date += 200              // t=1400,距第二次标记仅 200s
+        let n1 = await pool.next()
+        XCTAssertEqual(n1, b)          // a 仍在黑名单
+        clock.date += 150              // t=1550,距第二次标记 350s
+        let n2 = await pool.next()
+        XCTAssertEqual(n2, a)
+    }
 }
