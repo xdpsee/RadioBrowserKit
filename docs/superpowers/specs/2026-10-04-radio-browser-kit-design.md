@@ -17,7 +17,7 @@
 | 平台 | iOS 15+ / macOS 12+,纯 async/await |
 | API 范围 | 读取查询 + 互动上报(click/vote);**不含**添加/编辑电台写入接口 |
 | 播放器 | 不含,由调用方自行接入 AVFoundation |
-| 服务器策略 | 默认 `all.api.radio-browser.info`(DNS 轮询),实现 `/json/servers` 镜像发现 + 故障转移 |
+| 服务器策略 | 内置镜像种子列表轮转 + 故障转移。实测上游 `/json/servers` 仅返回 de1 自身 A/AAAA 记录、无法枚举镜像,弃用动态发现;默认 all/de1/de2 三个实测存活域名 |
 | API 风格 | 单入口 `RadioBrowserClient` actor + 参数结构体;端点方法按功能组用 extension 分文件 |
 
 ## 范围外(YAGNI)
@@ -31,23 +31,23 @@ RadioBrowserKit/
 ├── Package.swift
 ├── Sources/RadioBrowserKit/
 │   ├── RadioBrowserClient.swift       # 唯一入口 actor,持有 transport + serverPool
-│   ├── ClientConfig.swift             # baseURL / userAgent / 超时 / 重试策略
+│   ├── ClientConfig.swift             # mirrors / userAgent / 超时 / 重试策略
 │   ├── RadioBrowserError.swift        # 错误枚举
 │   ├── Core/
 │   │   ├── HTTPTransport.swift        # 协议化的 URLSession 封装:GET + JSON 解码
-│   │   └── ServerPool.swift           # 镜像发现、轮转、故障转移(独立 actor)
+│   │   └── ServerPool.swift           # 镜像种子列表轮转、失败拉黑(独立 actor)
 │   ├── Endpoints/
 │   │   +Stations.swift                # 列表/排行/byUUID 批量/broken/checkSteps
 │   │   +Search.swift                  # searchStations(StationQuery)
-│   │   +Directories.swift             # countries/countrycodes/codecs/states/languages/tags/streamingservers/stats
+│   │   +Directories.swift             # countries/countrycodes/codecs/states/languages/tags/stats
 │   │   └ +Interaction.swift           # registerClick / vote
 │   └── Models/
 │       ├── Station.swift
 │       ├── StationQuery.swift
 │       ├── DirectoryEntry.swift
-│       ├── ServerInfo.swift
 │       ├── Stats.swift
-│       └── CheckStep.swift
+│       ├── CheckStep.swift
+│       └── InteractionResult.swift
 └── Tests/RadioBrowserKitTests/
     ├── QuerySerializationTests.swift
     ├── DecodingTests.swift            # 用真实 API 回放的 JSON fixture
@@ -59,15 +59,15 @@ RadioBrowserKit/
 
 ### Station
 
-Codable、Identifiable(id = `stationuuid`)。字段与 API 1:1 映射:
+Codable、Identifiable(id = `stationuuid`)。字段与 API 1:1 映射(依据 2026-10-04 真实响应核实):
 
-- `changeuuid, stationuuid, name, url, urlResolved, homepage, favicon`
-- `tags, country, countrycode, state, language, languageCodes, votes, codec, bitrate, hls`
-- `lastCheckOk, lastCheckTime, clickTimestamp, clickCount, clickTrend, sslError`
-- `geoLat: Double?, geoLong: Double?, geoDistance: Double?, hasExtendedInfo: Bool`
-- JSON key 用 `CodingKeys` 映射为 camelCase;时间字段保留原始 String(API 同时提供 `_iso8601` 变体,统一采用带时区的 `_iso8601` 字段解码为 `Date?`)。
-- `tags`、`language`、`countrycode` 等逗号分隔字符串保持原样存储,附计算属性 `tagList: [String]`、`languageList: [String]` 做拆分便利。
-- `lastCheckOk` 保留 `Int`(0/1),不做 Bool 转换,避免与 API 语义漂移。
+- `changeuuid, stationuuid, serveruuid: String?, name, url, urlResolved, homepage, favicon`
+- `tags, country, countrycode, iso31662, state, language, languagecodes, votes, codec, bitrate`
+- 0/1 整数保留为 `Int`:`hls, lastCheckOk, sslError`
+- `lastChangeTime, lastCheckTime, lastCheckOkTime, lastLocalCheckTime, clickTimestamp` 解码为 `Date?`(取 `_iso8601` 后缀键,真实格式 `2026-09-30T22:24:51Z`)
+- `clickCount, clickTrend: Int`,`geoLat/geoLong/geoDistance: Double?`,`hasExtendedInfo: Bool`
+- JSON key 用 `CodingKeys` 映射为 camelCase。
+- `tags`、`language` 等逗号分隔字符串保持原样存储,附计算属性 `tagList: [String]`、`languageList: [String]` 做拆分便利。
 
 ### StationQuery
 
@@ -76,31 +76,40 @@ Codable、Identifiable(id = `stationuuid`)。字段与 API 1:1 映射:
 - 匹配:`name, country, countrycode, state, language, tag, codec`(各带对应 `Exact` 开关)、`tagList: [String]`(逗号拼接发送)、`geoLat/geoLong/geoDistance`
 - 过滤:`bitrateMin, bitrateMax, isHTTPS, hideBroken(默认 true)`
 - 分页排序:`order: OrderKey(默认 .clickCount), reverse(默认 true), offset(默认 0), limit(默认 100)`
-- `OrderKey` 枚举覆盖 API 全部排序字段(name, clickCount, voteCount, bitrate, changedTime 等)。
+- `OrderKey` 枚举 rawValue 覆盖 API 全部排序字段:`name, url, homepage, favicon, tags, country, countrycode, state, language, votes, codec, bitrate, hls, lastcheckok, lastchecktime, clicktimestamp, clickcount, clicktrend, random`。
 
 ### DirectoryEntry
 
-`{ name: String, stationCount: Int }`,所有目录类端点(tags/countries/languages/codecs/states)复用同一模型(各端点 count 字段名不同,在各自方法内解码归一)。
+`{ name: String, stationCount: Int }`(JSON key 为 `stationcount`),tags/countries/countrycodes/codecs/states/languages 目录端点复用。`states` 返回额外 `country`、`languages` 返回 `iso_639` 等键,Codable 解码时忽略未声明键,模型只保留统一两字段。
 
-### ServerInfo
+### Stats
 
-`{ name, url, software, policy, version, weight }` —— `/json/servers` 返回项。
+`/json/stats` 返回:`supportedVersion, softwareVersion, status, stations, stationsBroken, tags, clicksLastHour, clicksLastDay, languages, countries`(2026-10 实测键集)。
+
+### CheckStep
+
+`/json/checksteps?uuids=...` 返回:`stepuuid, parentStepuuid: String?, checkuuid, stationuuid, url, urlType, error: String?, creationDate: Date?`。
+
+### InteractionResult
+
+click/vote 响应:`{ ok: Bool, message: String }`;`registerClick`/`vote` 把 `ok` 作为返回值。
 
 ## 网络层与服务器故障转移
 
 ### HTTPTransport
 
-- 协议 `HTTPTransport`(单方法 `func get<T: Decodable>(_ type: T.Type, url: URL) async throws -> T`),生产实现基于 `URLSession`,测试可注入 stub。
+- 协议 `HTTPTransport`,单方法 `func get(_ url: URL, userAgent: String) async throws -> (Data, HTTPURLResponse)`——返回原始响应,便于上层区分 4xx/5xx 决定是否换服务器;生产实现基于 `URLSession`,测试注入 stub。
 - 必带请求头:`User-Agent`(config 提供,默认 `"RadioBrowserKit/<version>"`,文档要求调用方填自己 App 名)、`Accept: application/json`。
 - 请求超时 10 秒;GET 即可覆盖本项目全部端点(click/vote 也用 GET)。
 
 ### ServerPool(actor)
 
-1. 初始仅一个成员:config.baseURL(默认 all.api 域名)。
-2. 请求失败分类:`URLError`(网络类)与 HTTP 5xx → 可换服务器重试;4xx 与解码错误 → 不重试,直接抛。
-3. 触发重试时:`GET <候选服务器>/json/servers` 获取镜像列表,缓存(TTL 1 小时);按 `weight` 加权随机、排除已知失败项,轮转下一台重试。
-4. 单请求最多额外尝试 `config.maxServerRetries`(默认 2)次;全部失败抛 `RadioBrowserError.serverUnavailable`。
-5. 失败服务器在池内临时拉黑 5 分钟。
+上游 `/json/servers` 实测仅返回 de1 的 A/AAAA 记录,无法用于枚举镜像,故不做动态发现:
+
+1. 成员来自 `config.mirrors`,默认 `[all.api, de1.api, de2.api]`(2026-10-04 实测存活)。
+2. 请求失败分类:`URLError`(网络类)与 HTTP 5xx → 轮转下一镜像重试;4xx 与解码错误 → 不换服务器,直接抛。
+3. 轮转用游标 `cursor`;失败镜像拉黑 5 分钟(`blacklistDuration`,测试可注入时钟)。
+4. 单请求最多 `config.maxServerRetries`(默认 2)次换镜像重试;候选耗尽或全部在黑名单内抛 `RadioBrowserError.serverUnavailable`。
 
 ## 端点方法清单(RadioBrowserClient)
 
@@ -108,23 +117,25 @@ Codable、Identifiable(id = `stationuuid`)。字段与 API 1:1 映射:
 // +Search
 func searchStations(_ query: StationQuery) async throws -> [Station]
 // +Stations
-func listStations(order:reverse:offset:limit:) async throws -> [Station]
-func station(uuid: String) async throws -> Station?                     // /json/stations/{uuid};API 对未知 uuid 返回空数组 → nil
-func stations(uuids: [String]) async throws -> [Station]                // /json/stations/byuuid
-func station(url: String) async throws -> [Station]                     // /json/stations/byurl
-func topClickedStations(limit:) / topVotedStations(limit:)
-func lastClickedStations(limit:) / recentlyChangedStations(limit:)
-func brokenStations() / checkSteps(uuids:) async throws -> [CheckStep]
+func listStations(order:reverse:offset:limit:hideBroken:) async throws -> [Station]
+func station(uuid: String) async throws -> Station?                     // /json/stations/{uuid};实测未知 uuid 返回 HTTP 404 → 捕获后转 nil
+func stations(uuids: [String]) async throws -> [Station]                // /json/stations/byuuid?uuids=a,b
+func stations(url: String) async throws -> [Station]                    // /json/stations/byurl?url=...
+func topClickedStations(limit:) / topVotedStations(limit:)              // /json/stations/{topclick|topvote}/{limit}
+func lastClickedStations(limit:) / recentlyChangedStations(limit:)      // lastchange
+func brokenStations(offset:limit:) async throws -> [Station]
+func checkSteps(uuids: [String]) async throws -> [CheckStep]
 // +Directories
-func countries() / countryCodes() / codecs() / states(country:) / languages() / tags() / streamingServers()
-    // 目录类方法统一带 order:reverse:offset:limit:hideBroken 参数(均有默认值)
+func countries() / countryCodes() / codecs() / states(country:) / languages() / tags()
+    // 目录类方法统一带 order: DirectoryOrder(name|stationCount), reverse, offset, limit, hideBroken(均有默认值)
+    // streamingservers 已废弃(实测返回空数组),不封装
 func stats() async throws -> Stats          // /json/stats
 // +Interaction
-func registerClick(stationUUID: String) async throws   // 每 IP 每电台每日仅计一次(服务端限制)
-func vote(stationUUID: String) async throws            // 同 IP 同电台 10 分钟一次(服务端限制)
+@discardableResult func registerClick(stationUUID: String) async throws -> Bool  // 响应 ok 字段;每 IP 每电台每日仅计一次(服务端限制)
+@discardableResult func vote(stationUUID: String) async throws -> Bool           // 同 IP 同电台 10 分钟一次(服务端限制)
 ```
 
-`CheckStep`、`Stats` 为小型 Codable 值类型,字段 1:1 映射。说明:`/json/stations/byname|bytag|bycountry|...` 路径族**有意不封装**——其能力已由 `StationQuery` 的匹配字段 + Exact 开关完整覆盖;仅保留 `station(url:)`,因为按精确 URL 查电台无法用 query 表达。
+`CheckStep`、`Stats` 为小型 Codable 值类型,字段 1:1 映射。说明:`/json/stations/byname|bytag|bycountry|...` 路径族**有意不封装**——其能力已由 `StationQuery` 的匹配字段 + Exact 开关完整覆盖;仅保留 `stations(url:)`,因为按精确 URL 查电台无法用 query 表达。
 
 ## 错误处理
 
