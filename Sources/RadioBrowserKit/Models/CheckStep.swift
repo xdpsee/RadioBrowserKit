@@ -1,6 +1,6 @@
 import Foundation
 
-public struct CheckStep: Codable, Sendable {
+public struct CheckStep: Codable, Equatable, Sendable {
     public let stepuuid: String
     public let parentStepuuid: String?
     public let checkuuid: String

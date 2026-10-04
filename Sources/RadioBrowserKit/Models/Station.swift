@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Station: Codable, Identifiable, Sendable {
+public struct Station: Codable, Identifiable, Equatable, Sendable {
     public let changeuuid: String
     public let stationuuid: String
     public let serveruuid: String?

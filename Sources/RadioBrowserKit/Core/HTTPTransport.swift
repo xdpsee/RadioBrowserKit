@@ -7,6 +7,10 @@ public protocol HTTPTransport: Sendable {
 struct URLSessionTransport: HTTPTransport {
     let session: URLSession
 
+    init(session: URLSession) {
+        self.session = session
+    }
+
     init(timeout: TimeInterval) {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = timeout

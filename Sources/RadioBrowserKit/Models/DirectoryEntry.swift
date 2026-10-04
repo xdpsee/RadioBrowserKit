@@ -1,4 +1,4 @@
-public struct DirectoryEntry: Codable, Sendable {
+public struct DirectoryEntry: Codable, Equatable, Sendable {
     public let name: String
     public let stationCount: Int
 

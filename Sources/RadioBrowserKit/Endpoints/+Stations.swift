@@ -22,7 +22,8 @@ extension RadioBrowserClient {
     }
 
     public func stations(uuids: [String]) async throws -> [Station] {
-        try await fetch([Station].self, path: "/json/stations/byuuid", query: [
+        guard !uuids.isEmpty else { return [] }
+        return try await fetch([Station].self, path: "/json/stations/byuuid", query: [
             URLQueryItem(name: "uuids", value: uuids.joined(separator: ",")),
         ])
     }
@@ -57,7 +58,8 @@ extension RadioBrowserClient {
     }
 
     public func checkSteps(uuids: [String]) async throws -> [CheckStep] {
-        try await fetch([CheckStep].self, path: "/json/checksteps", query: [
+        guard !uuids.isEmpty else { return [] }
+        return try await fetch([CheckStep].self, path: "/json/checksteps", query: [
             URLQueryItem(name: "uuids", value: uuids.joined(separator: ",")),
         ])
     }

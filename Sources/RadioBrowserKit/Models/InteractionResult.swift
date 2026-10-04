@@ -1,4 +1,4 @@
-public struct InteractionResult: Codable, Sendable {
+public struct InteractionResult: Codable, Equatable, Sendable {
     public let ok: Bool
     public let message: String?
 }

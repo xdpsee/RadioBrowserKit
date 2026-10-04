@@ -1,4 +1,4 @@
-public struct Stats: Codable, Sendable {
+public struct Stats: Codable, Equatable, Sendable {
     public let supportedVersion: Int?
     public let softwareVersion: String?
     public let status: String?
