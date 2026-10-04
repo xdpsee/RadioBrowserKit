@@ -118,7 +118,7 @@ click/vote 响应:`{ ok: Bool, message: String }`;`registerClick`/`vote` 把 `ok
 func searchStations(_ query: StationQuery) async throws -> [Station]
 // +Stations
 func listStations(order:reverse:offset:limit:hideBroken:) async throws -> [Station]
-func station(uuid: String) async throws -> Station?                     // /json/stations/{uuid};实测未知 uuid 返回 HTTP 404 → 捕获后转 nil
+func station(uuid: String) async throws -> Station?                     // /json/stations/byuuid/{uuid};实测未知 uuid 返回 [] → .first 即 nil
 func stations(uuids: [String]) async throws -> [Station]                // /json/stations/byuuid?uuids=a,b
 func stations(url: String) async throws -> [Station]                    // /json/stations/byurl?url=...
 func topClickedStations(limit:) / topVotedStations(limit:)              // /json/stations/{topclick|topvote}/{limit}

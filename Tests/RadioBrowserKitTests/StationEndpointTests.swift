@@ -41,12 +41,11 @@ final class StationEndpointTests: XCTestCase {
         let (client, stub) = makeClient(returning: minimalStationJSON)
         let station = try await client.station(uuid: "s1")
         XCTAssertEqual(station?.name, "Test")
-        XCTAssertEqual(stub.requestedURLs.first?.path, "/json/stations/s1")
+        XCTAssertEqual(stub.requestedURLs.first?.path, "/json/stations/byuuid/s1")
     }
 
-    func testStationByUUIDMaps404ToNil() async throws {
-        let stub = StubTransport { StubTransport.jsonResponse($0, status: 404, "") }
-        let client = RadioBrowserClient(config: .init(mirrors: [mirror], userAgent: "t/1"), transport: stub)
+    func testStationByUUIDReturnsNilOnEmptyArray() async throws {
+        let (client, _) = makeClient(returning: "[]")
         let station = try await client.station(uuid: "missing")
         XCTAssertNil(station)
     }

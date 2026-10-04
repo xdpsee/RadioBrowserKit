@@ -18,11 +18,7 @@ extension RadioBrowserClient {
     }
 
     public func station(uuid: String) async throws -> Station? {
-        do {
-            return try await fetch([Station].self, path: "/json/stations/\(uuid)").first
-        } catch RadioBrowserError.http(status: 404, _) {
-            return nil
-        }
+        try await fetch([Station].self, path: "/json/stations/byuuid/\(uuid)").first
     }
 
     public func stations(uuids: [String]) async throws -> [Station] {
