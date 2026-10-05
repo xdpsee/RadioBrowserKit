@@ -84,11 +84,4 @@ final class StationEndpointTests: XCTestCase {
         XCTAssertEqual(stub.requestedURLs.first?.path, "/json/stations/broken")
         XCTAssertTrue(queryItems(of: stub.requestedURLs[0]).contains(URLQueryItem(name: "offset", value: "20")))
     }
-
-    func testCheckStepsQuery() async throws {
-        let (client, stub) = makeClient(returning: "[]")
-        _ = try await client.checkSteps(uuids: ["s1"])
-        XCTAssertEqual(stub.requestedURLs.first?.path, "/json/checksteps")
-        XCTAssertTrue(queryItems(of: stub.requestedURLs[0]).contains(URLQueryItem(name: "uuids", value: "s1")))
-    }
 }

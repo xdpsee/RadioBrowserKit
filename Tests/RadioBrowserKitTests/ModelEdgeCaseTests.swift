@@ -73,25 +73,26 @@ final class ModelEdgeCaseTests: XCTestCase {
         XCTAssertNil(stats.clicksLastDay)
     }
 
-    func testCheckStepErrorStringAndAbsentParent() throws {
-        let json = #"""
-        [{"stepuuid":"s","checkuuid":"c","stationuuid":"st","url":"http://u","urltype":"STREAM","error":"timeout","creation_iso8601":"2026-09-20T21:39:38Z"}]
-        """#
-        let steps = try JSON.decoder.decode([CheckStep].self, from: Data(json.utf8))
-        XCTAssertEqual(steps.count, 1)
-        XCTAssertEqual(steps[0].error, "timeout")
-        XCTAssertNil(steps[0].parentStepuuid)
-        XCTAssertNotNil(steps[0].creation)
-    }
-
     func testInteractionResultWithoutMessage() throws {
         let result = try JSON.decoder.decode(InteractionResult.self, from: Data(#"{"ok":true}"#.utf8))
         XCTAssertTrue(result.ok)
         XCTAssertNil(result.message)
+        XCTAssertNil(result.stationuuid)
+        XCTAssertNil(result.name)
+        XCTAssertNil(result.url)
     }
 
-    func testDirectoryEntryMinimalShape() throws {
-        let entries = try JSON.decoder.decode([DirectoryEntry].self, from: Data(#"[{"name":"rock","stationcount":7}]"#.utf8))
-        XCTAssertEqual(entries, [DirectoryEntry(name: "rock", stationCount: 7)])
+    func testPlainDirectoryEntriesMinimalShape() throws {
+        let tags = try JSON.decoder.decode([TagEntry].self, from: Data(#"[{"name":"rock","stationcount":7}]"#.utf8))
+        XCTAssertEqual(tags, [TagEntry(name: "rock", stationCount: 7)])
+        let codecs = try JSON.decoder.decode([CodecEntry].self, from: Data(#"[{"name":"MP3","stationcount":40450}]"#.utf8))
+        XCTAssertEqual(codecs[0].stationCount, 40450)
+        let codes = try JSON.decoder.decode([CountryCodeEntry].self, from: Data(#"[{"name":"US","stationcount":7173}]"#.utf8))
+        XCTAssertEqual(codes[0].name, "US")
+    }
+
+    func testCountryEntryRequiresISOCode() throws {
+        // iso_3166_1 在线全量 242/242 非空,声明为必填;缺失属异常载荷
+        XCTAssertThrowsError(try JSON.decoder.decode([CountryEntry].self, from: Data(#"[{"name":"Nowhere","stationcount":1}]"#.utf8)))
     }
 }

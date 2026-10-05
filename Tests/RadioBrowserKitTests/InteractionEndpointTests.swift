@@ -10,16 +10,17 @@ final class InteractionEndpointTests: XCTestCase {
     }
 
     func testRegisterClickPathAndResult() async throws {
-        let (client, stub) = makeClient(returning: #"{"ok":true,"message":"retrieved station url"}"#)
-        let ok = try await client.registerClick(stationUUID: "s1")
-        XCTAssertTrue(ok)
+        let (client, stub) = makeClient(returning: #"{"ok":true,"message":"retrieved station url","stationuuid":"s1","name":"X","url":"http://stream"}"#)
+        let result = try await client.registerClick(stationUUID: "s1")
+        XCTAssertTrue(result.ok)
+        XCTAssertEqual(result.url, "http://stream")
         XCTAssertEqual(stub.requestedURLs.first?.path, "/json/url/s1")
     }
 
-    func testRegisterClickReturnsFalseWhenNotOk() async throws {
+    func testRegisterClickReturnsNotOkWhenFailed() async throws {
         let (client, _) = makeClient(returning: #"{"ok":false,"message":"too many clicks"}"#)
-        let ok = try await client.registerClick(stationUUID: "s1")
-        XCTAssertFalse(ok)
+        let result = try await client.registerClick(stationUUID: "s1")
+        XCTAssertFalse(result.ok)
     }
 
     func testVotePath() async throws {

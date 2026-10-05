@@ -58,22 +58,6 @@ final class EndpointParameterTests: XCTestCase {
         XCTAssertTrue(stub.requestedURLs.isEmpty)
     }
 
-    func testCheckStepsWithEmptyUUIDListShortCircuits() async throws {
-        let (client, stub) = makeClient(returning: #"[]"#)
-        let result = try await client.checkSteps(uuids: [])
-        XCTAssertEqual(result, [])
-        XCTAssertTrue(stub.requestedURLs.isEmpty)
-    }
-
-    func testCheckStepsDecodesRealPayload() async throws {
-        let body = #"[{"stepuuid":"9f2ef9dd-f7a1-476c-8a38-41e7480dc5a1","parent_stepuuid":null,"checkuuid":"14501acd-5ea4-4731-bd20-128849adf1fa","stationuuid":"78012206-1aa1-11e9-a80b-52543be04c81","url":"https://mangoradio.stream.laut.fm/mangoradio","urltype":"STREAM","error":null,"creation_iso8601":"2026-09-20T21:39:38Z"}]"#
-        let (client, _) = makeClient(returning: body)
-        let steps = try await client.checkSteps(uuids: ["s1"])
-        XCTAssertEqual(steps.count, 1)
-        XCTAssertEqual(steps[0].urlType, "STREAM")
-        XCTAssertNotNil(steps[0].creation)
-    }
-
     func testCountriesOrderNameOverride() async throws {
         let (client, stub) = makeClient(returning: "[]")
         _ = try await client.countries(order: .name, limit: 5)

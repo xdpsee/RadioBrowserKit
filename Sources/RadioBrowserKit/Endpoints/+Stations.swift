@@ -57,13 +57,6 @@ extension RadioBrowserClient {
         ])
     }
     
-    public func checkSteps(uuids: [String]) async throws -> [CheckStep] {
-        guard !uuids.isEmpty else { return [] }
-        return try await fetch([CheckStep].self, path: "/json/checksteps", query: [
-            URLQueryItem(name: "uuids", value: uuids.joined(separator: ",")),
-        ])
-    }
-    
     private func ranked(_ endpoint: String, limit: Int) async throws -> [Station] {
         try await fetch([Station].self, path: "/json/stations/\(endpoint)/\(limit)")
     }

@@ -28,8 +28,9 @@ final class IntegrationTests: XCTestCase {
         let batch = try await client.stations(uuids: [station.stationuuid, "definitely-not-a-uuid"])
         XCTAssertEqual(batch.map(\.stationuuid), [station.stationuuid])
 
-        let ok = try await client.registerClick(stationUUID: station.stationuuid)
-        XCTAssertTrue(ok)
+        let click = try await client.registerClick(stationUUID: station.stationuuid)
+        XCTAssertTrue(click.ok)
+        XCTAssertNotNil(click.url)
     }
 
     func testLive404MapsToNil() async throws {
@@ -46,5 +47,18 @@ final class IntegrationTests: XCTestCase {
         let page = try await client.listStations(limit: 300)
         XCTAssertEqual(page.count, 300)
         XCTAssertTrue(page.contains { $0.iso31662 == nil })
+    }
+
+    func testLiveDirectoryExtras() async throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["RB_INTEGRATION_TESTS"] != nil)
+        let client = RadioBrowserClient(config: .init(userAgent: "RadioBrowserKit-Integration/0.1"))
+        // 线上全量 countries 的 iso_3166_1 均为两位代码;languages 头部 100 条即有约 78% iso_639 为 null
+        let countries = try await client.countries(limit: 50)
+        XCTAssertTrue(countries.allSatisfy { $0.iso31661.count == 2 })
+        let languages = try await client.languages(limit: 100)
+        XCTAssertTrue(languages.contains { $0.iso639 == nil })
+        let states = try await client.states(country: "Germany", limit: 10)
+        XCTAssertFalse(states.isEmpty)
+        XCTAssertTrue(states.allSatisfy { !$0.country.isEmpty })
     }
 }
