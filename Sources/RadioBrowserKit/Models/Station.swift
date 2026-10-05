@@ -12,7 +12,8 @@ public struct Station: Codable, Identifiable, Equatable, Sendable {
     public let tags: String
     public let country: String
     public let countrycode: String
-    public let iso31662: String
+    /// 实测约 42% 的电台为 null,必须可选。
+    public let iso31662: String?
     public let state: String
     public let language: String
     public let languagecodes: String

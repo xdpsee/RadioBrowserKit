@@ -38,4 +38,13 @@ final class IntegrationTests: XCTestCase {
         let missing = try await client.station(uuid: "00000000-0000-0000-0000-000000000000")
         XCTAssertNil(missing)
     }
+
+    func testLiveWidePageDecodes() async throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["RB_INTEGRATION_TESTS"] != nil)
+        let client = RadioBrowserClient(config: .init(userAgent: "RadioBrowserKit-Integration/0.1"))
+        // 真实数据约 42% 电台 iso_3166_2 为 null;宽页解码是脏数据回归哨兵
+        let page = try await client.listStations(limit: 300)
+        XCTAssertEqual(page.count, 300)
+        XCTAssertTrue(page.contains { $0.iso31662 == nil })
+    }
 }

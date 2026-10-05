@@ -40,6 +40,14 @@ final class ModelEdgeCaseTests: XCTestCase {
         XCTAssertEqual(try firstStation(json).tagList, [])
     }
 
+    func testNullISORegionDecodes() throws {
+        // 真实数据约 42% 电台 iso_3166_2 为 null
+        let json = realStationJSON.replacingOccurrences(of: "\"iso_3166_2\":\"DE-RP\"", with: "\"iso_3166_2\":null")
+        let s = try firstStation(json)
+        XCTAssertNil(s.iso31662)
+        XCTAssertEqual(s.countrycode, "DE")
+    }
+
     func testStationRoundTripsThroughEncoder() throws {
         let station = try firstStation(minimalStationJSON)
         let redecoded = try JSON.decoder.decode(Station.self, from: JSONEncoder().encode(station))

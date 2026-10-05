@@ -20,7 +20,11 @@ public actor RadioBrowserClient {
             let (data, response): (Data, HTTPURLResponse)
             do {
                 (data, response) = try await transport.get(url, userAgent: config.userAgent)
-            } catch is URLError {
+            } catch let error as URLError {
+                // 取消不是网络故障:必须立即向外传播,否则会把无辜镜像拉黑并重试。
+                if error.code == .cancelled || Task.isCancelled {
+                    throw error
+                }
                 await pool.markFailed(base)
                 continue
             }

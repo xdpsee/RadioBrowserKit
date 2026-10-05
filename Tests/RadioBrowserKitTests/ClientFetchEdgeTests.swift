@@ -100,4 +100,30 @@ final class ClientFetchEdgeTests: XCTestCase {
         }
         XCTAssertEqual(stub.requestedURLs.count, 1)
     }
+
+    func testCancellationPropagatesWithoutRetry() async throws {
+        let stub = StubTransport { _ in throw URLError(.cancelled) }
+        let client = makeClient(mirrors: [a, b], stub: stub)
+        do {
+            _ = try await client.fetch([Station].self, path: "/json/stations")
+            XCTFail("should throw")
+        } catch let error as URLError {
+            XCTAssertEqual(error.code, .cancelled)
+        }
+        // 取消不应触发"拉黑+换镜像"路径:只发出一次请求,也绝不转成 serverUnavailable
+        XCTAssertEqual(stub.requestedURLs.count, 1)
+    }
+
+    func testDecodingErrorOnOneBadRowFailsWholePageIsAccepted() async throws {
+        // 记录既有语义:单行类型不符会令整页 .decoding(而非部分成功)。
+        let brokenRow = minimalStationJSON.replacingOccurrences(of: "\"votes\":1", with: "\"votes\":\"many\"")
+        let stub = StubTransport { StubTransport.jsonResponse($0, brokenRow) }
+        let client = makeClient(mirrors: [a], stub: stub)
+        do {
+            _ = try await client.fetch([Station].self, path: "/json/stations")
+            XCTFail("should throw")
+        } catch let error as RadioBrowserError {
+            guard case .decoding = error else { return XCTFail("wrong error: \(error)") }
+        }
+    }
 }
