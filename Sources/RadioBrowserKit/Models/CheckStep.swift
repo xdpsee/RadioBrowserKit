@@ -9,7 +9,7 @@ public struct CheckStep: Codable, Equatable, Sendable {
     public let urlType: String
     public let error: String?
     public let creation: Date?
-
+    
     enum CodingKeys: String, CodingKey {
         case stepuuid, checkuuid, stationuuid, url, error
         case parentStepuuid = "parent_stepuuid"

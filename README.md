@@ -1,11 +1,11 @@
 # RadioBrowserKit
 
-[Radio-Browser.info](https://www.radio-browser.info) API 的 Swift 客户端库。纯 async/await,无第三方依赖,不含播放器(AVFoundation 自行接入)。
+[Radio-Browser.info](https://www.radio-browser.info) API 的 Swift 客户端库。
 
 ## 安装
 
 ```swift
-.package(url: "https://github.com/<your-org>/RadioBrowserKit", from: "0.1.0")
+.package(url: "https://github.com/xdpsee/RadioBrowserKit", from: "0.1.0")
 ```
 
 ## 用法

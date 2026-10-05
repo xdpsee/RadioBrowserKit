@@ -6,7 +6,7 @@ extension RadioBrowserClient {
         let result = try await fetch(InteractionResult.self, path: "/json/url/\(stationUUID)")
         return result.ok
     }
-
+    
     @discardableResult
     public func vote(stationUUID: String) async throws -> Bool {
         let result = try await fetch(InteractionResult.self, path: "/json/vote/\(stationUUID)")

@@ -35,35 +35,56 @@ public struct StationQuery: Sendable {
     public var offset = 0
     public var limit = 100
     public var hideBroken = true
-
+    
     public init() {}
-
+    
     var queryItems: [URLQueryItem] {
         var items: [URLQueryItem] = []
         func add(_ key: String, _ value: String?) {
-            if let value { items.append(URLQueryItem(name: key, value: value)) }
+            if let value {
+                items.append(URLQueryItem(name: key, value: value))
+            }
         }
+        
         func add(_ key: String, _ value: Int?) {
-            if let value { items.append(URLQueryItem(name: key, value: String(value))) }
+            if let value {
+                items.append(URLQueryItem(name: key, value: String(value)))
+            }
         }
+        
         func add(_ key: String, _ value: Double?) {
-            if let value { items.append(URLQueryItem(name: key, value: String(value))) }
+            if let value {
+                items.append(URLQueryItem(name: key, value: String(value)))
+            }
         }
+        
         func add(_ key: String, _ value: Bool?) {
-            if let value { items.append(URLQueryItem(name: key, value: value ? "true" : "false")) }
+            if let value {
+                items.append(URLQueryItem(name: key, value: value ? "true" : "false"))
+            }
         }
-
+        
         add("name", name)
-        if nameExact { add("nameExact", "true") }
+        if nameExact {
+            add("nameExact", "true")
+        }
         add("country", country)
-        if countryExact { add("countryExact", "true") }
+        if countryExact {
+            add("countryExact", "true")
+        }
         add("countrycode", countrycode)
         add("state", state)
-        if stateExact { add("stateExact", "true") }
+        if stateExact {
+            add("stateExact", "true")
+        }
         add("language", language)
-        if languageExact { add("languageExact", "true") }
+        if languageExact {
+            add("languageExact", "true")
+        }
         add("tag", tag)
-        if tagExact { add("tagExact", "true") }
+        if tagExact {
+            add("tagExact", "true")
+        }
         add("tagList", tagList?.joined(separator: ","))
         add("codec", codec)
         add("bitrateMin", bitrateMin)
@@ -78,6 +99,7 @@ public struct StationQuery: Sendable {
         add("offset", offset)
         add("limit", limit)
         add("hidebroken", hideBroken)
+        
         return items
     }
 }

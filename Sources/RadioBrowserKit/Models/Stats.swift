@@ -9,7 +9,7 @@ public struct Stats: Codable, Equatable, Sendable {
     public let clicksLastDay: Int?
     public let languages: Int?
     public let countries: Int?
-
+    
     enum CodingKeys: String, CodingKey {
         case supportedVersion = "supported_version"
         case softwareVersion = "software_version"

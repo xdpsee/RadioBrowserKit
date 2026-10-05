@@ -34,11 +34,11 @@ public struct Station: Codable, Identifiable, Equatable, Sendable {
     public let geoLong: Double?
     public let geoDistance: Double?
     public let hasExtendedInfo: Bool
-
+    
     public var id: String { stationuuid }
     public var tagList: [String] { tags.split(separator: ",").map(String.init) }
     public var languageList: [String] { language.split(separator: ",").map(String.init) }
-
+    
     enum CodingKeys: String, CodingKey {
         case changeuuid, stationuuid, serveruuid, name, url, homepage, favicon
         case tags, country, countrycode, state, language, languagecodes, votes
