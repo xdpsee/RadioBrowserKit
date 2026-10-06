@@ -2,7 +2,7 @@ import Foundation
 
 public struct ClientConfig: Sendable {
     public static let defaultMirrors: [URL] = [
-        "https://all.api.radio-browser.info",
+        //"https://all.api.radio-browser.info",
         "https://de1.api.radio-browser.info",
         "https://de2.api.radio-browser.info",
     ].map { URL(string: $0)! }
